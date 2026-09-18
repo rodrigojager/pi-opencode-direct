@@ -17,6 +17,8 @@ const FALLBACK_MODEL_IDS = [
     "deepseek-v4-flash-free",
     "ling-3.0-flash-fin-free",
     "mimo-v2.5-free",
+    "muse-spark-1.2-contributor-free",
+    "muse-spark-1.3-contributor-free",
     "nemotron-3-ultra-free",
     "nemotron-3.5-lightning-free",
 ];
@@ -65,9 +67,11 @@ function toProviderModel(m) {
     return {
         id: m.id.replace(/^opencode\//, ""),
         name: m.name,
-        // Per-model API override: models routed via @ai-sdk/openai speak the
-        // Responses API (e.g. muse-spark), everything else uses chat completions.
-        api: m.api ?? "openai-completions",
+        // Keep every model on the provider's registered API so Pi always enters
+        // our streamSimple wrapper. Responses-only models are dispatched by ID
+        // inside the wrapper; exposing openai-responses here would bypass the
+        // provider wrapper and Pi would inject the placeholder credential.
+        api: "openai-completions",
         reasoning: m.reasoning ?? false,
         thinkingLevelMap: m.thinkingLevelMap,
         input: (m.input?.includes("image") ? ["text", "image"] : ["text"]),
@@ -127,11 +131,7 @@ export default function opencodeDirectExtension(pi) {
             }
             if (ctx.signal.aborted)
                 return [];
-            // Responses-only contributor models currently reject the SDK-composed
-            // credential even though their raw endpoint is public; keep this direct
-            // provider on the verified Chat Completions models. The CLI fallback can
-            // still serve those contributor models.
-            const discovered = (await discoverModels({ signal: ctx.signal })).filter((model) => !model.api);
+            const discovered = await discoverModels({ signal: ctx.signal });
             if (discovered.length === 0)
                 return []; // keep previous snapshot; retry on next refresh
             const configs = discovered.map(toProviderModel);
@@ -143,12 +143,13 @@ export default function opencodeDirectExtension(pi) {
         // `Authorization: null` is the OpenAI SDK's supported omission.
         // Streaming, tools, reasoning, and cost handling stay fully native.
         streamSimple: (model, context, options) => {
-            const api = model.api;
-            const native = api === "openai-responses"
+            const responsesOnly = model.id.startsWith("muse-spark-");
+            const native = responsesOnly
                 ? nativeOpenAIResponsesStream
                 : nativeOpenAICompletionsStream;
+            const requestModel = responsesOnly ? { ...model, api: "openai-responses" } : model;
             const sessionId = nativeId("ses");
-            return native(model, context, {
+            return native(requestModel, context, {
                 ...options,
                 apiKey: "public",
                 headers: {
