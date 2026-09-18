@@ -15,6 +15,16 @@ const BASE_URL = "https://opencode.ai/zen/v1";
 const OPENCODE_NATIVE_TOOLS = [
   "bash", "edit", "glob", "grep", "read", "skill", "task", "todowrite", "webfetch", "websearch", "write",
 ] as const;
+const FALLBACK_MODEL_IDS = [
+  "big-pickle",
+  "deepseek-v4-flash-free",
+  "ling-3.0-flash-fin-free",
+  "mimo-v2.5-free",
+  "muse-spark-1.2-contributor-free",
+  "muse-spark-1.3-contributor-free",
+  "nemotron-3-ultra-free",
+  "nemotron-3.5-lightning-free",
+] as const;
 
 function nativeId(prefix: "ses" | "msg") {
   return `${prefix}_${randomUUID().replaceAll("-", "").slice(0, 26)}`;
@@ -102,7 +112,14 @@ export default function opencodeDirectExtension(pi: ExtensionAPI): void {
       // cannot live in provider config because Pi resolves config headers while
       // refreshing catalogs and expects every configured value to be a string.
     },
-    models: [],
+    models: FALLBACK_MODEL_IDS.map((id) => toProviderModel({
+      id: `opencode/${id}`,
+      name: `${id} (Free)`,
+      reasoning: false,
+      contextWindow: 128_000,
+      maxTokens: 16_384,
+      api: id.startsWith("muse-spark-") ? "openai-responses" : undefined,
+    })),
     async refreshModels(ctx) {
       if (!ctx.allowNetwork) {
         return ctx.stored?.models
