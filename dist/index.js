@@ -115,9 +115,17 @@ export default function opencodeDirectExtension(pi) {
         })),
         async refreshModels(ctx) {
             if (!ctx.allowNetwork) {
-                return ctx.stored?.models
+                const stored = ctx.stored?.models
                     .filter(m => m.provider === PROVIDER_ID && (m.api === "openai-completions" || m.api === "openai-responses"))
                     .map(fromStoredModel) ?? [];
+                return stored.length > 0 ? stored : FALLBACK_MODEL_IDS.map((id) => toProviderModel({
+                    id: `opencode/${id}`,
+                    name: `${id} (Free)`,
+                    reasoning: false,
+                    contextWindow: 128_000,
+                    maxTokens: 16_384,
+                    api: id.startsWith("muse-spark-") ? "openai-responses" : undefined,
+                }));
             }
             if (ctx.signal.aborted)
                 return [];
