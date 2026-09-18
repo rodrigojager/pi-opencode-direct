@@ -20,8 +20,6 @@ const FALLBACK_MODEL_IDS = [
   "deepseek-v4-flash-free",
   "ling-3.0-flash-fin-free",
   "mimo-v2.5-free",
-  "muse-spark-1.2-contributor-free",
-  "muse-spark-1.3-contributor-free",
   "nemotron-3-ultra-free",
   "nemotron-3.5-lightning-free",
 ] as const;
@@ -135,7 +133,11 @@ export default function opencodeDirectExtension(pi: ExtensionAPI): void {
         }));
       }
       if (ctx.signal.aborted) return [];
-      const discovered = await discoverModels({ signal: ctx.signal });
+      // Responses-only contributor models currently reject the SDK-composed
+      // credential even though their raw endpoint is public; keep this direct
+      // provider on the verified Chat Completions models. The CLI fallback can
+      // still serve those contributor models.
+      const discovered = (await discoverModels({ signal: ctx.signal })).filter((model) => !model.api);
       if (discovered.length === 0) return []; // keep previous snapshot; retry on next refresh
       const configs = discovered.map(toProviderModel);
       await ctx.publish({ persist: { models: configs.map(toStoredModel), checkedAt: Date.now() } });
@@ -154,14 +156,25 @@ export default function opencodeDirectExtension(pi: ExtensionAPI): void {
       const sessionId = nativeId("ses");
       return native(model as Parameters<typeof nativeOpenAICompletionsStream>[0], context, {
         ...options,
+        apiKey: "public",
         headers: {
           ...options?.headers,
-          Authorization: null,
+          Authorization: "Bearer public",
           "User-Agent": "opencode/1.18.31 ai-sdk/provider-utils/4.0.40 runtime/bun/1.3.14",
           "x-opencode-client": "cli",
           "x-opencode-project": "global",
           "x-opencode-session": sessionId,
           "x-opencode-request": nativeId("msg"),
+        },
+        fetch: async (input, init) => {
+          const headers = new Headers(init?.headers);
+          headers.set("Authorization", "Bearer public");
+          headers.set("User-Agent", "opencode/1.18.31 ai-sdk/provider-utils/4.0.40 runtime/bun/1.3.14");
+          headers.set("x-opencode-client", "cli");
+          headers.set("x-opencode-project", "global");
+          headers.set("x-opencode-session", sessionId);
+          headers.set("x-opencode-request", nativeId("msg"));
+          return (options?.fetch ?? globalThis.fetch)(input, { ...init, headers });
         },
         onPayload: async (payload, requestModel) => {
           const transformed = await options?.onPayload?.(payload, requestModel);
