@@ -24,7 +24,7 @@ A validação do Zen pode mudar. Mantenha também `https://github.com/rodrigojag
 ## Segurança
 
 - Não lê credenciais de outras extensões.
-- Funciona sem chave e remove `Authorization` das requisições.
+- Funciona sem credencial privada; usa apenas o identificador público aceito pelo endpoint Zen.
 - Não inicia subprocessos.
 - Ferramentas inexistentes continuam sujeitas ao allowlist normal do Pi.
 
