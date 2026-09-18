@@ -1,0 +1,45 @@
+{
+  "name": "pi-opencode-direct",
+  "version": "0.1.0",
+  "description": "Independent native Pi provider for OpenCode Zen free models over direct HTTP",
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "author": "Rodrigo Jager; based on pi-opencode-free by Pedro Alexis",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rodrigojager/pi-opencode-direct.git"
+  },
+  "bugs": "https://github.com/rodrigojager/pi-opencode-direct/issues",
+  "homepage": "https://github.com/rodrigojager/pi-opencode-direct#readme",
+  "files": [
+    "dist",
+    "!dist/*.test.*",
+    "!dist/**/*.map",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "pi-package",
+    "opencode",
+    "free-models"
+  ],
+  "pi": {
+    "extensions": [
+      "./dist/index.js"
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "tsc -p tsconfig.json",
+    "test": "bun test src/",
+    "smoke": "bun scripts/smoke-real.ts"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^24.0.0"
+  }
+}
